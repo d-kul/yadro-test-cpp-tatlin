@@ -1,0 +1,5 @@
+{
+  "read_write_delay": 0,
+  "single_shift_delay": 10,
+  "rewind_delay": 100
+}

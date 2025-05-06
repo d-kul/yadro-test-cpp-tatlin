@@ -1,10 +1,15 @@
+#pragma once
+
 #include <cstddef>
 
 template <typename T>
 class Tape {
  public:
-  // Returns the sizeof the tape
+  // Returns the size of the tape
   virtual std::size_t getSize() = 0;
+
+  // Returns the offset of the tape
+  virtual std::size_t getOffset() = 0;
 
   // Rewinds the tape back to the beginning
   virtual void rewind() = 0;

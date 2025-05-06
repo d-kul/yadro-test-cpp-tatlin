@@ -1,41 +1,82 @@
-#include <cstdint>
+#pragma once
+
+#include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <stdexcept>
+#include <thread>
 
 #include "Tape.h"
 
-// TODO: add delay from config
+template <typename T>
+class FileTape : public Tape<T> {
+ private:
+  static inline std::chrono::milliseconds readWriteDelay;
+  static inline std::chrono::milliseconds singleShiftDelay;
+  static inline std::chrono::milliseconds rewindDelay;
 
-class FileTape : public Tape<std::uint32_t> {
  public:
-  FileTape(std::filesystem::path file)
-      : file(file,
-             std::ios::binary | std::ios::in | std::ios::out | std::ios::ate),
-        size(this->file.tellp() / sizeof(std::uint32_t)) {
-    this->file.seekp(0, std::ios_base::beg);
+  FileTape() {}
+
+  FileTape(std::filesystem::path filePath) { open(filePath); }
+
+  FileTape(std::filesystem::path filePath, std::size_t size) {
+    create(filePath, size);
   }
 
   std::size_t getSize() override { return size; }
 
-  void rewind() override { file.seekp(0); }
+  std::size_t getOffset() override { return file.tellp() / sizeof(T); }
 
-  void shift(int offset = 1) override {
-    file.seekp(offset * sizeof(std::uint32_t), std::ios_base::cur);
+  void rewind() override {
+    file.seekp(0, std::ios_base::beg);
+    std::this_thread::sleep_for(rewindDelay);
   }
 
-  std::uint32_t read() override { 
-    std::uint32_t result;
+  void shift(int offset = 1) override {
+    file.seekp(offset * sizeof(T), std::ios_base::cur);
+    std::this_thread::sleep_for(singleShiftDelay * std::abs(offset));
+  }
+
+  T read() override {
+    if (getOffset() >= size) {
+      throw std::runtime_error("invalid offset");
+    }
+    T result;
     file.read(reinterpret_cast<char*>(&result), sizeof(result));
-    shift(-1);
+    file.seekp(-sizeof(T), std::ios_base::cur);
+    std::this_thread::sleep_for(readWriteDelay);
     return result;
   }
 
-  void write(std::uint32_t value) override {
+  void write(T value) override {
+    if (getOffset() >= size) {
+      throw std::runtime_error("invalid offset");
+    }
     file.write(reinterpret_cast<char*>(&value), sizeof(value));
-    shift(-1);
+    file.seekp(-sizeof(T), std::ios_base::cur);
+    std::this_thread::sleep_for(readWriteDelay);
   }
+
+  void open(std::filesystem::path filePath) {
+    file.open(filePath, file.binary | file.in | file.out | file.ate);
+    size = file.tellp() / sizeof(T);
+    rewind();
+  }
+
+  void create(std::filesystem::path filePath, std::size_t size) {
+    file.open(filePath, file.binary | file.in | file.out | file.trunc);
+    std::filesystem::resize_file(filePath, size * sizeof(T));
+    this->size = size;
+  }
+
+  bool is_open() { return file.is_open(); }
 
  private:
   std::fstream file;
   std::size_t size;
+
+  friend class Solution;
 };
