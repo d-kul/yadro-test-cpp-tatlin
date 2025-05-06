@@ -7,7 +7,7 @@
 
 class Solution {
  private:
-  static constexpr std::size_t M = 1 << 10;
+  static inline std::size_t M = 1 << 10;
   static inline const auto temp_dir = std::filesystem::path("tmp");
   static inline const auto temp_path = temp_dir / "tape";
 
